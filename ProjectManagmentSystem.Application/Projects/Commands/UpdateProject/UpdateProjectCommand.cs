@@ -1,18 +1,18 @@
 ﻿using MediatR;
-using ProjectManagementSystem.Application.Projects.Dtos;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using ProjectManagementSystem.Application.Common.Interfaces;
+using System.Text.Json.Serialization;
 
-namespace ProjectManagementSystem.Application.Projects.Commands.UpdateProject
+namespace ProjectManagementSystem.Application.Projects.Commands.UpdateProject;
+
+public record UpdateProjectCommand : IRequest, ICacheInvalidatorRequest
 {
-    public class UpdateProjectCommand:IRequest
-    {
-        public Guid Id { get; set; }
-        public string? Name { get; set; } = default!;
-        public string? Description { get; set; } = default!;
-        public DateTime ExpectedStartDate { get; set; } = default!;
-    }
+    public Guid Id { get; init; }
+    public string? Name { get; init; }
+    public string? Description { get; init; }
+    public DateTime ExpectedStartDate { get; init; }
+    [JsonIgnore]
+    public string[] CacheKeys => [$"project:{Id}", $"project:v2:{Id}"];
+    [JsonIgnore]
+    public string[] CacheTags => ["projects:v1", "projects:v2"];
 }
+

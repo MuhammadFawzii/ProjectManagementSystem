@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
+﻿using MediatR;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -7,6 +8,8 @@ using Microsoft.IdentityModel.Tokens;
 using ProjectManagementSystem.Application.Common.Interfaces;
 using ProjectManagementSystem.Domain.IRepositories;
 using ProjectManagementSystem.Infrastructure.Authentication;
+using ProjectManagementSystem.Infrastructure.Caching.Behaviors;
+using ProjectManagementSystem.Infrastructure.Caching.Services;
 using ProjectManagementSystem.Infrastructure.Permissions;
 using ProjectManagementSystem.Infrastructure.Persistence;
 using ProjectManagementSystem.Infrastructure.Repositories;
@@ -19,10 +22,62 @@ public static class ServiceCollectionExtensions
 {
     public static void AddInfrastructure(this IServiceCollection services,IConfiguration configuration)
     {
-        services.AddDatabaseServices(configuration)
+        services.AddCachingServices(configuration)
+                .AddDatabaseServices(configuration)
                 .AddJwtAuthenticationServices(configuration)
                 .AddAuthorizationPoliciesServices(configuration)
                 .AddBusinessServices();
+    }
+    public static IServiceCollection AddCachingServices(this IServiceCollection services,IConfiguration configuration)
+    {
+        // L1 - In-memory
+        services.AddMemoryCache();
+        // L2 - Redis
+        services.AddStackExchangeRedisCache(options =>
+        {
+            options.Configuration = configuration.GetConnectionString("Redis");
+            options.InstanceName = configuration["Redis:InstanceName"] ?? "PMS_";
+        });
+
+        // Cache invalidator
+        services.AddScoped<ICacheInvalidator, RedisCacheInvalidator>();
+
+        // Pipeline order matters!
+        services.AddTransient(typeof(IPipelineBehavior<,>), typeof(CacheInvalidationBehavior<,>));
+        services.AddTransient(typeof(IPipelineBehavior<,>), typeof(RealHybridCacheBehavior<,>));
+        services.AddOutputCache(options =>
+        {
+            options.DefaultExpirationTimeSpan = TimeSpan.FromMinutes(10);
+            options.MaximumBodySize = 64 * 1024;
+            options.SizeLimit = 100 * 1024 * 1024; // 100 mb
+            options.UseCaseSensitivePaths = false;
+
+            // Policy for project lists
+            options.AddPolicy("ProjectsList", builder =>
+            {
+                builder.Expire(TimeSpan.FromMinutes(5));
+                builder.Tag("projects");
+                builder.SetVaryByQuery("*");
+            });
+
+            // Policy for individual project details
+            options.AddPolicy("ProjectDetails", builder =>
+            {
+                builder.Expire(TimeSpan.FromMinutes(10));
+                builder.SetVaryByRouteValue("projectId");
+                builder.Tag("projects");
+            });
+
+            // Policy for task details
+            options.AddPolicy("TaskDetails", builder =>
+            {
+                builder.Expire(TimeSpan.FromMinutes(5));
+                builder.SetVaryByRouteValue("projectId", "taskId");
+                builder.Tag("tasks", "projects");
+            });
+        });
+
+        return services;
     }
     public static IServiceCollection AddJwtAuthenticationServices(this IServiceCollection services,IConfiguration configuration)
     {
@@ -72,7 +127,6 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IProjectManagementSeeder, ProjectManagementSeeder>();
         return services;
     }
-
     public static IServiceCollection AddAuthorizationPoliciesServices(this IServiceCollection services,IConfiguration configuration)
     {
         services.AddAuthorization(options =>

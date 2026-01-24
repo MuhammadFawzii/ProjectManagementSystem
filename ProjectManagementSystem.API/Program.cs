@@ -30,10 +30,16 @@ try
     app.UseMiddleware<RequestTimeLoggingMiddleware>();
     app.UseSerilogRequestLogging();
     
+    // Enable Rate Limiting middleware
+    app.UseRateLimiter();
     
+    // Enable Output Caching middleware
+    app.UseOutputCache();
+        
+    // JWT Authentication & Authorization middleware (order matters!)
+    app.UseAuthentication();
+    app.UseAuthorization();
     
-    //app.UseHttpsRedirection();
-    //app.UseAuthorization();
     app.MapControllers();
     if (app.Environment.IsDevelopment())
     {

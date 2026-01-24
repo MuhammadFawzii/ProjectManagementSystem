@@ -1,9 +1,10 @@
 ﻿using MediatR;
+using ProjectManagementSystem.Application.Common.Interfaces;
 using System.Text.Json.Serialization;
 
 namespace ProjectManagementSystem.Application.ProjectTasks.Commands.AssignUserToProjectTask;
 
-public class AssignUserToProjectTaskCommand : IRequest
+public class AssignUserToProjectTaskCommand : IRequest, ICacheInvalidatorRequest
 {
     public Guid UserId { get; set; }
     
@@ -20,4 +21,15 @@ public class AssignUserToProjectTaskCommand : IRequest
         ProjectId = projectId;
         TaskId = taskId;
     }
+    public string[]? CacheTags => new[]
+    {
+        $"projects:v1",
+        $"projects:v2",
+    };
+    public string[]? CacheKeys => new[]
+    {
+        $"projecttask:{ProjectId}:{TaskId}",
+        $"project:{ProjectId}",
+        $"project:v2:{ProjectId}",
+    } ; 
 }

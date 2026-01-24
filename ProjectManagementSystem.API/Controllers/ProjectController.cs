@@ -91,7 +91,6 @@ public class ProjectController(IMediator mediator) : ControllerBase
     [EndpointDescription("Updates the data of an existing project.")]
     public async Task<IActionResult> UpdateProject([FromRoute] Guid projectId, [FromBody] UpdateProjectCommand command)
     {
-        command.Id = projectId;
         await mediator.Send(command);
         return NoContent();
     }

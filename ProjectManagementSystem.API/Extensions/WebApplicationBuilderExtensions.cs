@@ -3,14 +3,17 @@ using Asp.Versioning.ApiExplorer;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.OpenApi;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Options;
 using Microsoft.OpenApi.Models;
 using ProjectManagementSystem.API.Middlewares;
 using ProjectManagementSystem.API.OpenApi.Transformers;
 using Serilog;
 using Swashbuckle.AspNetCore.SwaggerGen;
-using System.Text.Json.Serialization;
 using System.Text.Json;
+using System.Text.Json.Serialization;
+using System.Threading.RateLimiting;
+using static System.Net.Mime.MediaTypeNames;
 
 namespace ProjectManagementSystem.API.Extensions;
 
@@ -25,9 +28,65 @@ public static class WebApplicationBuilderExtensions
         builder.Services.AddApiDocumentationServices();
         builder.Services.AddExceptionHandlingServices();
         builder.Services.AddControllerWithJsonConfigurationServices();
+        builder.Services.AddRateLimitingServices();
         builder.Host.UseSerilog((context, configuration)=> {
             configuration.ReadFrom.Configuration(context.Configuration);
         });
+    }
+    public static IServiceCollection AddRateLimitingServices(this IServiceCollection services)
+    {
+        services.AddRateLimiter(options =>
+        {
+           
+            options.AddFixedWindowLimiter("DefaultPolicy", limiterOptions =>
+            {
+                limiterOptions.Window = TimeSpan.FromMinutes(1);
+                limiterOptions.PermitLimit = 100;
+                limiterOptions.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+                limiterOptions.QueueLimit = 10;
+            });
+
+            options.AddSlidingWindowLimiter("SlidingWindow", limiterOptions =>
+            {
+                limiterOptions.Window = TimeSpan.FromMinutes(1);
+                limiterOptions.PermitLimit = 100;
+                limiterOptions.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+                limiterOptions.QueueLimit = 10;
+                limiterOptions.SegmentsPerWindow = 6;
+                limiterOptions.AutoReplenishment = true;
+            });
+
+            options.AddConcurrencyLimiter("Concurrency", limiterOptions =>
+            {
+                limiterOptions.PermitLimit = 50;
+                limiterOptions.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+                limiterOptions.QueueLimit = 100;
+            });
+
+            options.AddPolicy("ApiUserPolicy", httpContext =>
+                   RateLimitPartition.GetFixedWindowLimiter(
+                       partitionKey: httpContext.User.Identity?.Name ?? "anonymous",
+                       factory: _ => new FixedWindowRateLimiterOptions
+                       {
+                           Window = TimeSpan.FromMinutes(1),
+                           PermitLimit = 1000,
+                           AutoReplenishment = true
+                       }));
+
+            options.AddPolicy("IpPolicy", httpContext =>
+                  RateLimitPartition.GetSlidingWindowLimiter(
+                      partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                      factory: _ => new SlidingWindowRateLimiterOptions
+                      {
+                          Window = TimeSpan.FromMinutes(1),
+                          PermitLimit = 100,
+                          SegmentsPerWindow = 6,
+                          AutoReplenishment = true
+                      }));
+        });
+
+
+        return services;
     }
     public static IServiceCollection AddCustomApiVersioningServices(this IServiceCollection services)
     {
@@ -80,6 +139,7 @@ public static class WebApplicationBuilderExtensions
         });
         return services;
     }
+    
 }
 
 

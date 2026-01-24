@@ -1,11 +1,12 @@
 ﻿using MediatR;
+using ProjectManagementSystem.Application.Common.Interfaces;
 using ProjectManagementSystem.Application.ProjectTasks.Dtos;
 using ProjectManagementSystem.Domain.Constants;
 using System.Text.Json.Serialization;
 
 namespace ProjectManagementSystem.Application.ProjectTasks.Commands.UpdateProjectTask;
 
-public class UpdateProjectTaskCommand : IRequest<ProjectTaskDto>
+public class UpdateProjectTaskCommand : IRequest<ProjectTaskDto>, ICacheInvalidatorRequest
 {
     public string Title { get; set; } = null!;
     public string? Description { get; set; }
@@ -28,4 +29,17 @@ public class UpdateProjectTaskCommand : IRequest<ProjectTaskDto>
         TaskId = taskId;
         CurrentUserId = currentUserId;
     }
+
+    public string[]? CacheTags => new[]
+    {
+        $"projects:v1",
+        $"projects:v2",
+    };
+    public string[]? CacheKeys => new[]
+    {
+        $"projecttask:{ProjectId}:{TaskId}",
+        $"project:{ProjectId}",
+        $"project:v2:{ProjectId}",
+    };
 }
+
