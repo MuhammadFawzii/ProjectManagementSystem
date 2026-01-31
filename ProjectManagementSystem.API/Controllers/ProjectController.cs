@@ -58,6 +58,7 @@ public class ProjectController(IMediator mediator) : ControllerBase
     [EndpointName("GetProjectsV1")]
     [EndpointSummary("Retrieves all projects")]
     [EndpointDescription("Retrieves all projects owned or accessible by the user.")]
+    [Tags("projects:v1")]
     public async Task<ActionResult<IEnumerable<ProjectDto>>> GetProjects([FromQuery] GetProjectsV1Query query)
     {
         var projects = await mediator.Send(query);
@@ -71,6 +72,8 @@ public class ProjectController(IMediator mediator) : ControllerBase
     [EndpointName("GetProjectsV2")]
     [EndpointSummary("Retrieves all projects with currency info")]
     [EndpointDescription("Retrieves all projects and includes a currency field for each.")]
+    [Tags("projects:v2")]
+
     public async Task<ActionResult<IEnumerable<ProjectDto>>> GetProjectsWithCurrency([FromQuery] GetProjectsV2Query query)
     {
         var projects = await mediator.Send(query);

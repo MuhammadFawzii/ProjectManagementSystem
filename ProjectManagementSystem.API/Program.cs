@@ -1,8 +1,10 @@
+using Microsoft.EntityFrameworkCore;
 using ProjectManagementSystem.API.Extensions;
 using ProjectManagementSystem.API.Middlewares;
 using ProjectManagementSystem.Application.Extensions;
 using ProjectManagementSystem.Infrastructure.Extensions;
 using ProjectManagementSystem.Infrastructure.Seeders;
+using ProjectManagementSystem.Infrastructure.Persistence;
 using Scalar.AspNetCore;
 using Serilog;
 
@@ -21,9 +23,16 @@ try
     builder.Services.AddApplication();
     builder.Services.AddInfrastructure(builder.Configuration);
     var app = builder.Build();
-    var scope=app.Services.CreateScope();
-    var seeder = scope.ServiceProvider.GetRequiredService<IProjectManagementSeeder>();
-    await seeder.SeedAsync();
+    
+    // Ensure database is created and apply migrations
+    using (var scope = app.Services.CreateScope())
+    {
+        var dbContext = scope.ServiceProvider.GetRequiredService<ProjectManagementSystemDbContext>();
+        await dbContext.Database.MigrateAsync();
+        
+        var seeder = scope.ServiceProvider.GetRequiredService<IProjectManagementSeeder>();
+        await seeder.SeedAsync();
+    }
     Log.Information("Application built successfully");
     
     app.UseMiddleware<ErrorHandlingMiddleware>();

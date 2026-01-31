@@ -1,8 +1,12 @@
-﻿
+﻿using System.Text.Json.Serialization;
+
 namespace ProjectManagementSystem.Application.Common;
 
 public class PagedResult<T> where T : class
 {
+    [JsonConstructor]
+    public PagedResult() { }
+
     public PagedResult(IEnumerable<T> items, int totalItemsCount, int pageSize, int pageNumber)
     {
         Items = items;
@@ -12,7 +16,7 @@ public class PagedResult<T> where T : class
         ItemsTo = Math.Min(ItemsFrom + pageSize - 1, totalItemsCount);
     }
     
-    public IEnumerable<T> Items { get; set; }
+    public IEnumerable<T> Items { get; set; } = [];
     public int TotalPages { get; set; }
     public int TotalItemsCount { get; set; }
     public int ItemsFrom { get; set; }

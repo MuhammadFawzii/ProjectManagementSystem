@@ -2,7 +2,7 @@
 using ProjectManagementSystem.Domain.Entities;
 using ProjectManagementSystem.Infrastructure.Configurations;
 namespace ProjectManagementSystem.Infrastructure.Persistence;
-internal class ProjectManagementSystemDbContext(DbContextOptions<ProjectManagementSystemDbContext> options): DbContext(options)
+public class ProjectManagementSystemDbContext(DbContextOptions<ProjectManagementSystemDbContext> options): DbContext(options)
 {
     internal DbSet<Project> Projects { get; set; }
     internal DbSet<ProjectTask> ProjectTasks { get; set; }

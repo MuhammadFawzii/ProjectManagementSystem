@@ -43,8 +43,8 @@ public class CacheInvalidationBehavior<TRequest, TResponse>
         {
             foreach (var tag in request.CacheTags)
             {
-                await _cache.RemoveAsync(tag, cancellationToken);
-                _logger.LogInformation("Cache invalidated by tag: {tag}", tag);
+                await _cache.RemoveByTagAsync(tag, cancellationToken);
+                _logger.LogInformation("Cache invalidated by tag: {Tag}", tag);
             }
         }
 

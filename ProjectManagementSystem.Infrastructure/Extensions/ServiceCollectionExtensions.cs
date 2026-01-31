@@ -39,6 +39,16 @@ public static class ServiceCollectionExtensions
             options.InstanceName = configuration["Redis:InstanceName"] ?? "PMS_";
         });
 
+        // HybridCache (combines L1 + L2)
+        services.AddHybridCache(options =>
+        {
+            options.DefaultEntryOptions = new Microsoft.Extensions.Caching.Hybrid.HybridCacheEntryOptions
+            {
+                Expiration = TimeSpan.FromMinutes(10),
+                LocalCacheExpiration = TimeSpan.FromMinutes(5)
+            };
+        });
+
         // Cache invalidator
         services.AddScoped<ICacheInvalidator, RedisCacheInvalidator>();
 
@@ -122,7 +132,13 @@ public static class ServiceCollectionExtensions
         var connectionString = configuration.GetConnectionString("ProjectManagementSystemDb");
         services.AddDbContext<ProjectManagementSystemDbContext>(options =>
         {
-            options.UseSqlServer(connectionString);
+            options.UseSqlServer(connectionString, sqlOptions =>
+            {
+                sqlOptions.EnableRetryOnFailure(
+                    maxRetryCount: 5,
+                    maxRetryDelay: TimeSpan.FromSeconds(30),
+                    errorNumbersToAdd: null);
+            });
         });
         services.AddScoped<IProjectManagementSeeder, ProjectManagementSeeder>();
         return services;
